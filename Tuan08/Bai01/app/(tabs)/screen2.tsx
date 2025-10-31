@@ -2,8 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
-import { initDB, getTasks, toggleTask } from '../lib/database';
-import {SafeAreaView} from 'react-native-safe-area-context'
+import { initDB, getTasks, toggleTask, syncTasks } from '../lib/database';
+import { SafeAreaView } from 'react-native-safe-area-context'
 interface Task {
   id: string;
   title: string;
@@ -58,7 +58,22 @@ export default function TaskScreen() {
           <Text style={styles.headerSubtitle}>Have a grate day a head</Text>
         </View>
       </View>
-
+      {/* ✅ Nút đồng bộ */}
+      <TouchableOpacity
+        onPress={async () => {
+          try {
+            await syncTasks();
+            const updated = await getTasks();
+            setTasks(updated as Task[]);
+            alert('☁️ Đồng bộ thành công!');
+          } catch (e) {
+            alert('❌ Lỗi khi đồng bộ!');
+            console.error(e);
+          }
+        }}
+      >
+        <Ionicons name="cloud-upload-outline" size={24} color="#00C4CC" />
+      </TouchableOpacity>
       <View style={styles.searchBox}>
         <Ionicons name="search" size={18} color="#787878" style={{ marginLeft: 8 }} />
         <TextInput

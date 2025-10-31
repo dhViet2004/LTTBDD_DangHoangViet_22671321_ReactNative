@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
-import { addTask, toggleTask } from '../lib/database'; // thêm import
-import * as SQLite from 'expo-sqlite';
+import { addTask, initDB, db } from '../lib/database';
 
 export default function AddJobScreen() {
   const { name, id, title } = useLocalSearchParams<{ name?: string; id?: string; title?: string }>();
@@ -16,7 +15,8 @@ export default function AddJobScreen() {
     if (!job.trim()) return;
     setLoading(true);
     try {
-      const db = SQLite.openDatabaseSync('tasks.db');
+      // ✅ Đảm bảo database đã được khởi tạo
+      await initDB();
 
       if (id) {
         // ✅ Update task theo id
