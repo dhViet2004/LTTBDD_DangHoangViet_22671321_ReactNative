@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchDrinksByShop, type Drink } from '@/services/api';
-// Import hàm SQLite của bạn
-// import { addItemToCart, decreaseItemInCart } from '@/services/database';
+import { fetchDrinksByShop, type Drink } from '../../services/api';
+import { initDB, addItemToCart } from '../../services/database';
 
 export default function MenuScreen() {
   const { shopId } = useLocalSearchParams(); // Lấy ID của shop
@@ -33,6 +32,18 @@ export default function MenuScreen() {
     }
   }, [shopId]);
 
+  // Xử lý thêm vào giỏ hàng
+  const handleAddToCart = async (drink: Drink) => {
+    try {
+      await initDB();
+      await addItemToCart(drink);
+      Alert.alert('Thành công', `${drink.name} đã được thêm vào giỏ hàng!`);
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể thêm vào giỏ hàng');
+      console.error(error);
+    }
+  };
+
   // Hàm render item
   const renderDrinkItem = ({ item }: { item: Drink }) => (
     <View style={styles.itemContainer}>
@@ -42,11 +53,10 @@ export default function MenuScreen() {
         <Text style={styles.itemPrice}>${item.price}</Text>
       </View>
       <View style={styles.itemControls}>
-        <TouchableOpacity style={styles.controlButton}>
-          <Ionicons name="remove" size={20} color="#fff" />
-        </TouchableOpacity>
-        {/* <Text> 0 </Text>  Bạn có thể thêm State để đếm số lượng */}
-        <TouchableOpacity style={styles.controlButton}>
+        <TouchableOpacity 
+          style={styles.controlButton}
+          onPress={() => handleAddToCart(item)}
+        >
           <Ionicons name="add" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
