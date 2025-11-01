@@ -11,7 +11,7 @@ export type Expense = {
   isDeleted: number;
 };
 
-// Hàm khởi tạo database (đã có)
+// Hàm khởi tạo database
 export const initDB = () => {
   try {
     db.execSync(
@@ -26,15 +26,14 @@ export const initDB = () => {
     );
     try {
       db.execSync('ALTER TABLE expenses ADD COLUMN isDeleted INTEGER DEFAULT 0;');
-    } catch (e) {
-      // Bỏ qua lỗi
-    }
+    } catch (e) { /* Bỏ qua lỗi nếu cột đã tồn tại */ }
+    console.log('Bảng "expenses" đã sẵn sàng.');
   } catch (error) {
     console.error('Lỗi khi khởi tạo DB "expenses":', error);
   }
 };
 
-// (Câu 3c) Hàm thêm (đã có)
+// (Câu 3c) Hàm thêm
 export const addExpense = (title: string, amount: number, date: string, type: 'income' | 'expense') => {
   try {
     db.runSync(
@@ -46,10 +45,12 @@ export const addExpense = (title: string, amount: number, date: string, type: 'i
   }
 };
 
-// Hàm lấy Thu/Chi (CHƯA XÓA) (đã có)
-export const fetchExpenses = (): Expense[] => {
+// (Câu 6a) Hàm lấy Thu/Chi (CHƯA XÓA) + TÌM KIẾM
+export const fetchExpenses = (searchQuery: string = ""): Expense[] => {
   try {
-    const allExpenses = db.getAllSync<Expense>('SELECT * FROM expenses WHERE isDeleted = 0;');
+    const query = `SELECT * FROM expenses WHERE isDeleted = 0 AND (title LIKE ?);`;
+    const params = [`%${searchQuery}%`];
+    const allExpenses = db.getAllSync<Expense>(query, params);
     return allExpenses;
   } catch (error) {
     console.error('Lỗi khi lấy Thu/Chi:', error);
@@ -57,7 +58,7 @@ export const fetchExpenses = (): Expense[] => {
   }
 };
 
-// (Câu 4) Hàm lấy 1 Thu/Chi bằng ID (đã có)
+// (Câu 4) Hàm lấy 1 Thu/Chi bằng ID
 export const fetchExpenseById = (id: number): Expense | null => {
   try {
     const expense = db.getFirstSync<Expense>('SELECT * FROM expenses WHERE id = ?;', id);
@@ -68,7 +69,7 @@ export const fetchExpenseById = (id: number): Expense | null => {
   }
 };
 
-// (Câu 4b) Hàm cập nhật (đã có)
+// (Câu 4b) Hàm cập nhật
 export const updateExpense = (id: number, title: string, amount: number, type: 'income' | 'expense') => {
   try {
     db.runSync(
@@ -80,23 +81,21 @@ export const updateExpense = (id: number, title: string, amount: number, type: '
   }
 };
 
-// --- (MỚI CHO CÂU 5) ---
-
 // (Câu 5b) Hàm "xóa mềm"
 export const softDeleteExpense = (id: number) => {
   try {
-    // Đánh dấu isDeleted = 1
     db.runSync('UPDATE expenses SET isDeleted = 1 WHERE id = ?;', id);
-    console.log('Đã "xóa mềm" Thu/Chi ID:', id);
   } catch (error) {
     console.error('Lỗi khi xóa mềm:', error);
   }
 };
 
-// (Câu 5c) Hàm lấy các khoản ĐÃ XÓA (Thùng rác)
-export const fetchDeletedExpenses = (): Expense[] => {
+// (Câu 6b) Hàm lấy các khoản ĐÃ XÓA (Thùng rác) + TÌM KIẾM
+export const fetchDeletedExpenses = (searchQuery: string = ""): Expense[] => {
   try {
-    const deletedExpenses = db.getAllSync<Expense>('SELECT * FROM expenses WHERE isDeleted = 1;');
+    const query = `SELECT * FROM expenses WHERE isDeleted = 1 AND (title LIKE ?);`;
+    const params = [`%${searchQuery}%`];
+    const deletedExpenses = db.getAllSync<Expense>(query, params);
     return deletedExpenses;
   } catch (error) {
     console.error('Lỗi khi lấy Thu/Chi đã xóa:', error);

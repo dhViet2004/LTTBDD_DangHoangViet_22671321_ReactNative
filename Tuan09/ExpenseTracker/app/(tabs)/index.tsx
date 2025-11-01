@@ -6,34 +6,31 @@ import {
   StatusBar, 
   TouchableOpacity, 
   FlatList,
-  Alert // (MỚI CÂU 5) Import Alert
+  Alert,
+  TextInput // (MỚI CÂU 6a) Import TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router'; 
 import ExpenseItem from '../../components/ExpenseItem';
-
-// (MỚI CÂU 5) Import hàm softDeleteExpense
 import { fetchExpenses, softDeleteExpense, Expense } from '../../services/database';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  
+  // (MỚI CÂU 6a) State cho thanh tìm kiếm
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Hàm để tải dữ liệu
-  const loadExpenses = useCallback(async () => {
-    try {
-      const allExpenses = fetchExpenses(); // Hàm này đã được sửa để chỉ lấy chưa xóa
-      setExpenses(allExpenses.reverse());
-    } catch (error) {
-      console.error("Lỗi khi tải Thu/Chi:", error);
-    }
-  }, []);
-
-  // Tự động refresh khi màn hình được focus
+  // (CẬP NHẬT CÂU 6a) Tải Thu/Chi dựa trên searchQuery
   useFocusEffect(
     useCallback(() => {
-      loadExpenses();
-    }, [loadExpenses])
+      try {
+        const allExpenses = fetchExpenses(searchQuery); // Truyền searchQuery vào
+        setExpenses(allExpenses.reverse()); 
+      } catch (error) {
+        console.error("Lỗi khi tải Thu/Chi:", error);
+      }
+    }, [searchQuery]) // Thêm searchQuery vào dependencies (để tự động tìm khi gõ)
   );
 
   // (Câu 3) Hàm xử lý khi bấm nút "+"
@@ -41,37 +38,30 @@ export default function HomeScreen() {
     router.push('/modal');
   };
 
-  // --- (MỚI CHO CÂU 5) ---
-  // (Câu 5a, 5b) Hàm xử lý khi "chạm lâu"
+  // (Câu 5) Hàm xử lý khi "chạm lâu"
   const handleLongPressExpense = (id: number) => {
-    // (Câu 5b) Hiển thị hộp thoại xác định
     Alert.alert(
-      "Xác nhận xóa", // Tiêu đề
-      "Bạn có chắc muốn xóa khoản này? Nó sẽ được chuyển vào Thùng rác.", // Nội dung
+      "Xác nhận xóa", 
+      "Bạn có chắc muốn xóa khoản này?", 
       [
-        // Nút 1: Hủy
-        {
-          text: "Hủy",
-          style: "cancel"
-        },
-        // Nút 2: Xóa
+        { text: "Hủy", style: "cancel" },
         {
           text: "Xóa",
           onPress: () => {
-            // Khi bấm Xóa
             try {
-              softDeleteExpense(id); // Gọi hàm xóa mềm
-              loadExpenses(); // Tải lại danh sách
+              softDeleteExpense(id);
+              // Tải lại danh sách sau khi xóa
+              const allExpenses = fetchExpenses(searchQuery);
+              setExpenses(allExpenses.reverse());
             } catch (error) {
               console.error("Lỗi khi xóa:", error);
             }
           },
-          style: "destructive" // Kiểu phá hủy (chữ màu đỏ trên iOS)
+          style: "destructive"
         }
       ]
     );
   };
-  // -------------------------
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -81,6 +71,18 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.headerText}>EXPENSE TRACKER</Text>
         </View>
+
+        {/* --- (MỚI CÂU 6a) Thanh Tìm Kiếm --- */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm khoản thu/chi..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery} // Cập nhật state khi gõ
+          />
+        </View>
+        {/* ------------------------------------ */}
 
         <FlatList
           style={styles.content}
@@ -92,17 +94,15 @@ export default function HomeScreen() {
               amount={item.amount}
               date={item.date}
               type={item.type}
-              // (Câu 4) Khi nhấn
               onPress={() => router.push({ 
                 pathname: '/edit',
                 params: { id: item.id }
               })}
-              // (CẬP NHẬT CÂU 5) Khi chạm lâu
               onLongPress={() => handleLongPressExpense(item.id)}
             />
           )}
           ListEmptyComponent={
-            <Text style={styles.placeholderText}>Chưa có khoản Thu/Chi nào.</Text>
+            <Text style={styles.placeholderText}>Không tìm thấy khoản Thu/Chi nào.</Text>
           }
         />
 
@@ -116,7 +116,7 @@ export default function HomeScreen() {
   );
 }
 
-// (Styles giữ nguyên như cũ)
+// (CẬP NHẬT CÂU 6a) Thêm style cho thanh tìm kiếm
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -138,10 +138,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
-  content: {
-    flex: 1, 
+  // (MỚI) Style thanh tìm kiếm
+  searchContainer: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 15,
+    paddingBottom: 10,
+    backgroundColor: '#f7f7f7'
+  },
+  searchInput: {
+    backgroundColor: 'white',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  // (CẬP NHẬT) Style nội dung
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20, // Bỏ paddingTop
   },
   placeholderText: {
     fontSize: 16,
