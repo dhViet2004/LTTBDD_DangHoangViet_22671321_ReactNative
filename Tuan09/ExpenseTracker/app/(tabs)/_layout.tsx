@@ -25,13 +25,21 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
         }}
       />
-      {/* --- (CẬP NHẬT CÂU 5c) --- */}
       <Tabs.Screen
-        name="trash" // Đổi "explore" thành "trash"
+        name="trash" 
         options={{
-          title: 'Thùng rác', // Tên tab mới
-          headerShown: false, // Ẩn header, chúng ta tự tạo sau
-          tabBarIcon: ({ color }) => <TabBarIcon name="trash-outline" color={color} />, // Icon thùng rác
+          title: 'Thùng rác',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <TabBarIcon name="trash-outline" color={color} />,
+        }}
+      />
+      {/* --- (MỚI CÂU 11a) --- */}
+      <Tabs.Screen
+        name="statistics" // Tên file: statistics.tsx
+        options={{
+          title: 'Thống kê', // Tên tab
+          headerShown: false, // Ẩn header
+          tabBarIcon: ({ color }) => <TabBarIcon name="stats-chart-outline" color={color} />, // Icon
         }}
       />
       {/* ------------------------- */}
