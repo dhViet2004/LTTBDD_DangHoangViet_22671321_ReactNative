@@ -1,29 +1,57 @@
 import React from 'react';
-import { StyleSheet, Text, View, StatusBar, TouchableOpacity } from 'react-native';
-
-// (Câu 1b) Import SafeAreaView
+import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// 1. Import component ExpenseItem
+import ExpenseItem from '../../components/ExpenseItem';
+
 export default function HomeScreen() {
+  
+  // (Câu 2) Tạo dữ liệu mẫu để hiển thị
+  const sampleIncome = {
+    title: 'Tiền lương tháng 10',
+    amount: 10000000,
+    date: '31/10/2025',
+    type: 'income' as const, // Phải có 'as const' để TypeScript hiểu
+  };
+
+  const sampleExpense = {
+    title: 'Ăn tối',
+    amount: 150000,
+    date: '31/10/2025',
+    type: 'expense' as const,
+  };
+
   return (
-    // (Câu 1b) Dùng SafeAreaView bọc màn hình
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
-
-      {/* (Câu 1b) Dùng View để bố trí layout */}
       <View style={styles.container}>
         
-        {/* (Câu 1c) Tiêu đề trên cùng: "EXPENSE TRACKER" */}
         <View style={styles.header}>
           <Text style={styles.headerText}>EXPENSE TRACKER</Text>
         </View>
 
-        {/* (Câu 1d) Khu vực nội dung chính */}
-        <View style={styles.content}>
-          <Text style={styles.placeholderText}>Danh sách Thu/Chi sẽ ở đây...</Text>
-        </View>
+        {/* (Câu 2) Thay thế khu vực nội dung
+            Dùng ScrollView để có thể cuộn
+        */}
+        <ScrollView style={styles.content}>
+          {/* Hiển thị Item mẫu: Thu */}
+          <ExpenseItem 
+            title={sampleIncome.title}
+            amount={sampleIncome.amount}
+            date={sampleIncome.date}
+            type={sampleIncome.type}
+          />
+          {/* Hiển thị Item mẫu: Chi */}
+          <ExpenseItem 
+            title={sampleExpense.title}
+            amount={sampleExpense.amount}
+            date={sampleExpense.date}
+            type={sampleExpense.type}
+          />
+        </ScrollView>
 
-        {/* (Câu 1d & 3b) Tự thiết kế: Nút Add (chuẩn bị cho Câu 3) */}
+        {/* Nút Add (cho Câu 3) */}
         <TouchableOpacity style={styles.addButton}>
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
@@ -33,14 +61,14 @@ export default function HomeScreen() {
   );
 }
 
-// (Câu 1d) StyleSheet để làm đẹp
+// (Styles giữ nguyên, chỉ sửa style 'content')
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1, // Chiếm toàn màn hình
-    backgroundColor: '#f7f7f7', // Màu nền xám nhạt
+    flex: 1,
+    backgroundColor: '#f7f7f7',
   },
   container: {
-    flex: 1, // Chiếm toàn bộ không gian của SafeAreaView
+    flex: 1,
   },
   header: {
     backgroundColor: 'white',
@@ -48,31 +76,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    alignItems: 'center', // Căn giữa tiêu đề
+    alignItems: 'center',
   },
   headerText: {
     fontSize: 20,
     fontWeight: 'bold',
-    letterSpacing: 0.5, // Giãn chữ 1 chút cho đẹp
+    letterSpacing: 0.5,
   },
   content: {
-    flex: 1, // Chiếm hết không gian còn lại
-    padding: 20,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: '#a0a0a0',
-    textAlign: 'center',
-    marginTop: 40,
+    flex: 1, 
+    paddingHorizontal: 20, // Chỉ padding ngang
+    paddingTop: 20, // Padding trên
   },
   addButton: {
-    position: 'absolute', // Nằm đè lên trên
+    position: 'absolute',
     right: 25,
-    bottom: 90, // Vị trí phía trên Tab Bar
-    backgroundColor: '#007AFF', // Màu xanh
+    bottom: 90,
+    backgroundColor: '#007AFF',
     width: 60,
     height: 60,
-    borderRadius: 30, // Bo tròn
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
