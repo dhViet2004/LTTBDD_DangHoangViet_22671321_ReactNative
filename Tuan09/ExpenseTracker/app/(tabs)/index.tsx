@@ -1,25 +1,45 @@
-import React from 'react';
-import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  StatusBar, 
+  TouchableOpacity, 
+  FlatList // Dùng FlatList thay cho ScrollView
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router'; // Import thêm
 
-// 1. Import component ExpenseItem
+// 1. Import ExpenseItem và các hàm database
 import ExpenseItem from '../../components/ExpenseItem';
+import { fetchExpenses, Expense } from '../../services/database';
 
 export default function HomeScreen() {
-  
-  // (Câu 2) Tạo dữ liệu mẫu để hiển thị
-  const sampleIncome = {
-    title: 'Tiền lương tháng 10',
-    amount: 10000000,
-    date: '31/10/2025',
-    type: 'income' as const, // Phải có 'as const' để TypeScript hiểu
-  };
+  const router = useRouter(); // Lấy router để điều hướng
 
-  const sampleExpense = {
-    title: 'Ăn tối',
-    amount: 150000,
-    date: '31/10/2025',
-    type: 'expense' as const,
+  // 2. State để lưu danh sách Thu/Chi
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  // 3. Hàm để tải dữ liệu
+  const loadExpenses = useCallback(async () => {
+    try {
+      const allExpenses = fetchExpenses();
+      setExpenses(allExpenses.reverse()); // Hiển thị cái mới nhất lên đầu
+    } catch (error) {
+      console.error("Lỗi khi tải Thu/Chi:", error);
+    }
+  }, []);
+
+  // 4. Tự động refresh khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      loadExpenses();
+    }, [loadExpenses])
+  );
+
+  // (Câu 3a, 3b) Hàm xử lý khi bấm nút "+"
+  const handlePressAdd = () => {
+    router.push('/modal'); // Mở màn hình modal
   };
 
   return (
@@ -31,28 +51,27 @@ export default function HomeScreen() {
           <Text style={styles.headerText}>EXPENSE TRACKER</Text>
         </View>
 
-        {/* (Câu 2) Thay thế khu vực nội dung
-            Dùng ScrollView để có thể cuộn
-        */}
-        <ScrollView style={styles.content}>
-          {/* Hiển thị Item mẫu: Thu */}
-          <ExpenseItem 
-            title={sampleIncome.title}
-            amount={sampleIncome.amount}
-            date={sampleIncome.date}
-            type={sampleIncome.type}
-          />
-          {/* Hiển thị Item mẫu: Chi */}
-          <ExpenseItem 
-            title={sampleExpense.title}
-            amount={sampleExpense.amount}
-            date={sampleExpense.date}
-            type={sampleExpense.type}
-          />
-        </ScrollView>
+        {/* 5. Dùng FlatList để hiển thị danh sách từ state */}
+        <FlatList
+          style={styles.content}
+          data={expenses} // Dữ liệu từ state
+          keyExtractor={(item) => item.id.toString()} // Key duy nhất
+          renderItem={({ item }) => (
+            <ExpenseItem
+              title={item.title}
+              amount={item.amount}
+              date={item.date}
+              type={item.type}
+            />
+          )}
+          // Hiển thị nếu danh sách rỗng
+          ListEmptyComponent={
+            <Text style={styles.placeholderText}>Chưa có khoản Thu/Chi nào.</Text>
+          }
+        />
 
-        {/* Nút Add (cho Câu 3) */}
-        <TouchableOpacity style={styles.addButton}>
+        {/* Nút Add, gán hàm handlePressAdd */}
+        <TouchableOpacity style={styles.addButton} onPress={handlePressAdd}>
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
 
@@ -61,7 +80,7 @@ export default function HomeScreen() {
   );
 }
 
-// (Styles giữ nguyên, chỉ sửa style 'content')
+// (Styles giữ nguyên, chỉ sửa style 'content' và 'placeholderText')
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -85,8 +104,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1, 
-    paddingHorizontal: 20, // Chỉ padding ngang
-    paddingTop: 20, // Padding trên
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#a0a0a0',
+    textAlign: 'center',
+    marginTop: 40,
   },
   addButton: {
     position: 'absolute',
