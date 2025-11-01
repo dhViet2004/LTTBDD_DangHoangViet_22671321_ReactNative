@@ -5,41 +5,38 @@ import {
   View, 
   StatusBar, 
   TouchableOpacity, 
-  FlatList // Dùng FlatList thay cho ScrollView
+  FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router'; // Import thêm
-
-// 1. Import ExpenseItem và các hàm database
+import { useRouter, useFocusEffect } from 'expo-router'; 
 import ExpenseItem from '../../components/ExpenseItem';
 import { fetchExpenses, Expense } from '../../services/database';
 
 export default function HomeScreen() {
-  const router = useRouter(); // Lấy router để điều hướng
-
-  // 2. State để lưu danh sách Thu/Chi
+  const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  // 3. Hàm để tải dữ liệu
+  // Hàm để tải dữ liệu
   const loadExpenses = useCallback(async () => {
     try {
       const allExpenses = fetchExpenses();
-      setExpenses(allExpenses.reverse()); // Hiển thị cái mới nhất lên đầu
+      setExpenses(allExpenses.reverse());
     } catch (error) {
       console.error("Lỗi khi tải Thu/Chi:", error);
     }
   }, []);
 
-  // 4. Tự động refresh khi màn hình được focus
+  // Tự động refresh khi màn hình được focus
+  // (Câu 4c: Tự động cập nhật lại danh sách khi quay về)
   useFocusEffect(
     useCallback(() => {
       loadExpenses();
     }, [loadExpenses])
   );
 
-  // (Câu 3a, 3b) Hàm xử lý khi bấm nút "+"
+  // (Câu 3) Hàm xử lý khi bấm nút "+"
   const handlePressAdd = () => {
-    router.push('/modal'); // Mở màn hình modal
+    router.push('/modal');
   };
 
   return (
@@ -51,26 +48,33 @@ export default function HomeScreen() {
           <Text style={styles.headerText}>EXPENSE TRACKER</Text>
         </View>
 
-        {/* 5. Dùng FlatList để hiển thị danh sách từ state */}
         <FlatList
           style={styles.content}
-          data={expenses} // Dữ liệu từ state
-          keyExtractor={(item) => item.id.toString()} // Key duy nhất
+          data={expenses}
+          keyExtractor={(item) => item.id.toString()}
+          
+          // --- (THAY ĐỔI CÂU 4A Ở ĐÂY) ---
           renderItem={({ item }) => (
             <ExpenseItem
               title={item.title}
               amount={item.amount}
               date={item.date}
               type={item.type}
+              // (Câu 4a) Khi nhấn vào item
+              onPress={() => router.push({ 
+                pathname: '/edit',        // Chuyển sang màn hình edit
+                params: { id: item.id }   // Truyền id của item qua
+              })}
             />
           )}
-          // Hiển thị nếu danh sách rỗng
+          // ------------------------------------
+
           ListEmptyComponent={
             <Text style={styles.placeholderText}>Chưa có khoản Thu/Chi nào.</Text>
           }
         />
 
-        {/* Nút Add, gán hàm handlePressAdd */}
+        {/* Nút Add */}
         <TouchableOpacity style={styles.addButton} onPress={handlePressAdd}>
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
@@ -80,7 +84,7 @@ export default function HomeScreen() {
   );
 }
 
-// (Styles giữ nguyên, chỉ sửa style 'content' và 'placeholderText')
+// (Styles giữ nguyên như cũ)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
