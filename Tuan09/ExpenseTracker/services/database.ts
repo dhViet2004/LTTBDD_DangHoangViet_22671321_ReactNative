@@ -11,6 +11,9 @@ export type Expense = {
   isDeleted: number;
 };
 
+// Định nghĩa kiểu Filter
+export type FilterType = 'all' | 'income' | 'expense';
+
 // Hàm khởi tạo database (đã có)
 export const initDB = () => {
   try {
@@ -44,18 +47,32 @@ export const addExpense = (title: string, amount: number, date: string, type: 'i
   }
 };
 
-// (Câu 6a) Hàm lấy Thu/Chi (CHƯA XÓA) + TÌM KIẾM (đã có)
-export const fetchExpenses = (searchQuery: string = ""): Expense[] => {
+// --- (ĐÃ SỬA LỖI CÂU 10) ---
+// (Câu 10b) Hàm lấy Thu/Chi (CHƯA XÓA) + TÌM KIẾM + LỌC
+export const fetchExpenses = (searchQuery: string = "", filterType: FilterType = 'all'): Expense[] => {
   try {
-    const query = `SELECT * FROM expenses WHERE isDeleted = 0 AND (title LIKE ?);`;
-    const params = [`%${searchQuery}%`];
+    // Bắt đầu câu truy vấn
+    // (FIX) Đã xóa dấu ; ở cuối
+    let query = `SELECT * FROM expenses WHERE isDeleted = 0 AND (title LIKE ?)`;
+    const params: any[] = [`%${searchQuery}%`];
+
+    // (Câu 10b) Thêm điều kiện lọc
+    if (filterType !== 'all') {
+      query += ' AND type = ?'; // Thêm AND type = 'income' (hoặc 'expense')
+      params.push(filterType);
+    }
+    
+    // (FIX) Thêm dấu ; vào CUỐI CÙNG
+    query += ';';
+
     const allExpenses = db.getAllSync<Expense>(query, params);
     return allExpenses;
   } catch (error) {
-    console.error('Lỗi khi lấy Thu/Chi:', error);
+    console.error('Lỗi khi lấy Thu/Chi (có lọc):', error);
     return [];
   }
 };
+// -------------------------
 
 // (Câu 4) Hàm lấy 1 Thu/Chi bằng ID (đã có)
 export const fetchExpenseById = (id: number): Expense | null => {
@@ -89,7 +106,7 @@ export const softDeleteExpense = (id: number) => {
   }
 };
 
-// (Câu 6b) Hàm lấy các khoản ĐÃ XÓA (Thùng rác) + TÌM KIẾM (đã có)
+// (Câu 6b) Hàm lấy các khoản ĐÃ XÓA (đã có)
 export const fetchDeletedExpenses = (searchQuery: string = ""): Expense[] => {
   try {
     const query = `SELECT * FROM expenses WHERE isDeleted = 1 AND (title LIKE ?);`;
@@ -102,15 +119,11 @@ export const fetchDeletedExpenses = (searchQuery: string = ""): Expense[] => {
   }
 };
 
-// --- (MỚI CHO CÂU 8) ---
-// (Câu 8a) Hàm khôi phục Thu/Chi
+// (Câu 8a) Hàm khôi phục (đã có)
 export const restoreExpense = (id: number) => {
   try {
-    // Đánh dấu isDeleted = 0
     db.runSync('UPDATE expenses SET isDeleted = 0 WHERE id = ?;', id);
-    console.log('Đã khôi phục Thu/Chi ID:', id);
   } catch (error) {
     console.error('Lỗi khi khôi phục:', error);
   }
 };
-// -------------------------

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -13,12 +13,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router'; 
 import ExpenseItem from '../../components/ExpenseItem';
-import { fetchExpenses, softDeleteExpense, Expense } from '../../services/database';
 
-// (MỚI CÂU 9) Import
-import { Ionicons } from '@expo/vector-icons'; // Để dùng icon
-import axios from 'axios'; // Để gọi API
-import Dialog from "react-native-dialog"; // Để tạo Hộp thoại
+// (CẬP NHẬT CÂU 10) Import thêm FilterType
+import { fetchExpenses, softDeleteExpense, Expense, FilterType } from '../../services/database';
+
+// (MỚI CÂU 10a) Component nút Lọc
+type FilterButtonProps = {
+  text: string;
+  isActive: boolean;
+  onPress: () => void;
+};
+
+const FilterButton: React.FC<FilterButtonProps> = ({ text, isActive, onPress }) => (
+  <TouchableOpacity
+    style={[styles.filterButton, isActive && styles.filterButtonActive]}
+    onPress={onPress}
+  >
+    <Text style={[styles.filterButtonText, isActive && styles.filterButtonTextActive]}>{text}</Text>
+  </TouchableOpacity>
+);
+// ---------------------------------
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -26,30 +40,33 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // (MỚI CÂU 9) State cho Dialog đồng bộ
-  const [isDialogVisible, setDialogVisible] = useState(false);
-  const [tempApiLink, setTempApiLink] = useState(''); // State để lưu link từ ô input
+  // (MỚI CÂU 10a) State cho bộ lọc
+  const [filterType, setFilterType] = useState<FilterType>('all');
 
-  // --- (CÁC HÀM CŨ) ---
-
-  // (Câu 7) Hàm tải dữ liệu
+  // (CẬP NHẬT CÂU 10b) Tải Thu/Chi dựa trên searchQuery VÀ filterType
   const loadExpenses = useCallback(() => {
     try {
-      const allExpenses = fetchExpenses(searchQuery);
+      // Truyền cả searchQuery và filterType vào
+      const allExpenses = fetchExpenses(searchQuery, filterType);
       setExpenses(allExpenses.reverse()); 
     } catch (error) {
       console.error("Lỗi khi tải Thu/Chi:", error);
     }
-  }, [searchQuery]);
+  }, [searchQuery, filterType]); // Thêm filterType vào dependencies
 
-  // Tải lại khi focus
+  // (CẬP NHẬT CÂU 10b) Tải lại khi focus
   useFocusEffect(loadExpenses);
+
+  // (CẬP NHẬT CÂU 10b) Tải lại khi filter hoặc search thay đổi
+  useEffect(() => {
+    loadExpenses();
+  }, [loadExpenses]); // loadExpenses đã phụ thuộc vào [searchQuery, filterType]
 
   // (Câu 7) Hàm xử lý khi kéo xuống
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     try {
-      loadExpenses();
+      loadExpenses(); 
     } catch (error) {
       console.error("Lỗi khi làm mới:", error);
     } finally {
@@ -74,7 +91,7 @@ export default function HomeScreen() {
           onPress: () => {
             try {
               softDeleteExpense(id);
-              loadExpenses();
+              loadExpenses(); // Tải lại danh sách
             } catch (error) {
               console.error("Lỗi khi xóa:", error);
             }
@@ -85,91 +102,13 @@ export default function HomeScreen() {
     );
   };
 
-  // --- (MỚI CÂU 9) ---
-  
-  // (Câu 9b) Mở Dialog để paste link
-  const handleSyncPress = () => {
-    setTempApiLink(''); // Xóa link cũ
-    setDialogVisible(true); // Mở Dialog
-  };
-
-  // Hàm khi bấm "Hủy" trên Dialog
-  const handleDialogCancel = () => {
-    setDialogVisible(false);
-  };
-
-  // (Câu 9b) Hàm khi bấm "Đồng bộ" trên Dialog
-  const handleDialogSync = () => {
-    if (tempApiLink && tempApiLink.trim() !== "") {
-      const formattedLink = tempApiLink.trim().replace(/^https?:\/\//, ''); 
-      if (!formattedLink.includes('mockapi.io')) {
-          Alert.alert("Lỗi", "Link API không hợp lệ. Phải là link 'mockapi.io'.");
-          return;
-      }
-      executeSync(`https://${formattedLink}`);
-    } else {
-      Alert.alert("Lỗi", "Bạn chưa nhập link API.");
-    }
-    setDialogVisible(false); // Đóng Dialog
-  };
-
-  // (Câu 9a) Hàm thực thi đồng bộ
-  const executeSync = async (apiLink: string) => {
-    Alert.alert("Đang đồng bộ...", "Vui lòng chờ. Quá trình này có thể mất vài phút.");
-    
-    try {
-      // BƯỚC 1: (Câu 9a) Xóa toàn bộ data cũ trên API
-      console.log("Bắt đầu đồng bộ: Đang lấy data cũ từ API...");
-      const response = await axios.get(apiLink);
-      const existingData = response.data;
-
-      if (Array.isArray(existingData) && existingData.length > 0) {
-        console.log(`Tìm thấy ${existingData.length} mục cũ. Bắt đầu xóa...`);
-        // Lặp qua và xóa từng mục
-        for (const item of existingData) {
-          await axios.delete(`${apiLink}/${item.id}`);
-        }
-        console.log("Đã xóa xong data cũ trên API.");
-      } else {
-        console.log("API rỗng, không cần xóa.");
-      }
-
-      // BƯỚC 2: (Câu 9a) Lấy data từ SQLite và POST lên API
-      const localExpenses = fetchExpenses(); // Lấy tất cả (chưa xóa) từ DB
-      
-      if (localExpenses.length === 0) {
-        Alert.alert("Thông báo", "Đã dọn dẹp API. Không có dữ liệu nội bộ để đẩy lên.");
-        return;
-      }
-
-      console.log(`Bắt đầu đẩy ${localExpenses.length} mục từ SQLite lên API...`);
-      for (const expense of localExpenses) {
-        // Chuẩn bị object để gửi đi (bỏ id và isDeleted)
-        const { id, isDeleted, ...expenseToSync } = expense; 
-        await axios.post(apiLink, expenseToSync);
-      }
-      
-      // BƯỚC 3: Thông báo thành công
-      Alert.alert("Thành công", `Đã xóa data cũ và đồng bộ ${localExpenses.length} khoản thu/chi lên API.`);
-
-    } catch (error) {
-      console.error("Lỗi khi đồng bộ:", error);
-      Alert.alert("Đồng bộ thất bại", "Đã có lỗi xảy ra. Vui lòng kiểm tra lại link API và kết nối mạng.");
-    }
-  };
-  // -------------------------
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
         
-        {/* (CẬP NHẬT CÂU 9) Thêm nút Đồng bộ vào Header */}
         <View style={styles.header}>
           <Text style={styles.headerText}>EXPENSE TRACKER</Text>
-          <TouchableOpacity style={styles.syncButton} onPress={handleSyncPress}>
-            <Ionicons name="cloud-upload-outline" size={26} color="#007AFF" />
-          </TouchableOpacity>
         </View>
 
         {/* Thanh Tìm Kiếm (Câu 6a) */}
@@ -182,6 +121,27 @@ export default function HomeScreen() {
             onChangeText={setSearchQuery} 
           />
         </View>
+
+        {/* --- (MỚI CÂU 10a) Thanh Lọc --- */}
+        
+        <View style={styles.filterContainer}>
+          <FilterButton 
+            text="Tất cả" 
+            isActive={filterType === 'all'} 
+            onPress={() => setFilterType('all')} 
+          />
+          <FilterButton 
+            text="Thu" 
+            isActive={filterType === 'income'} 
+            onPress={() => setFilterType('income')} 
+          />
+          <FilterButton 
+            text="Chi" 
+            isActive={filterType === 'expense'} 
+            onPress={() => setFilterType('expense')} 
+          />
+        </View>
+        {/* ------------------------------- */}
 
         <FlatList
           style={styles.content}
@@ -217,28 +177,12 @@ export default function HomeScreen() {
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
 
-        {/* --- (MỚI CÂU 9) Dialog Đồng Bộ --- */}
-        <Dialog.Container visible={isDialogVisible}>
-          <Dialog.Title>Đồng bộ API</Dialog.Title>
-          <Dialog.Description>
-            Vui lòng dán link API MockAPI.io của bạn.
-          </Dialog.Description>
-          <Dialog.Input 
-            placeholder="https://mockapi.io/..."
-            onChangeText={setTempApiLink}
-            value={tempApiLink}
-          />
-          <Dialog.Button label="Hủy" onPress={handleDialogCancel} color="grey" />
-          <Dialog.Button label="Đồng bộ" onPress={handleDialogSync} />
-        </Dialog.Container>
-        {/* ------------------------------------ */}
-
       </View>
     </SafeAreaView>
   );
 }
 
-// (CẬP NHẬT CÂU 9) Thêm style cho nút Đồng bộ và Header
+// (CẬP NHẬT CÂU 10) Thêm style cho thanh Lọc
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -254,24 +198,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
     alignItems: 'center',
-    justifyContent: 'center', // Căn giữa tiêu đề
-    flexDirection: 'row', // Thêm để chứa nút sync
   },
   headerText: {
     fontSize: 20,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
-  // (MỚI) Nút Đồng bộ
-  syncButton: {
-    position: 'absolute',
-    right: 20, // Đặt ở góc phải
-    padding: 5,
-  },
   searchContainer: {
     paddingHorizontal: 20,
     paddingTop: 15,
-    paddingBottom: 10,
+    paddingBottom: 5, // Giảm padding
     backgroundColor: '#f7f7f7'
   },
   searchInput: {
@@ -283,6 +219,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  // (MỚI) Style thanh Lọc
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    backgroundColor: '#f7f7f7',
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  filterButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  filterButtonTextActive: {
+    color: 'white',
+  },
+  // (CẬP NHẬT) Style nội dung
   content: {
     flex: 1,
     paddingHorizontal: 20,
