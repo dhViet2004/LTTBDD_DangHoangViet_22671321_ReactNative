@@ -6,24 +6,27 @@ import {
   StatusBar, 
   FlatList,
   TextInput,
-  RefreshControl 
+  RefreshControl,
+  Alert // (MỚI CÂU 8) Import Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router'; 
 import ExpenseItem from '../../components/ExpenseItem';
-import { fetchDeletedExpenses, Expense } from '../../services/database';
+
+// (MỚI CÂU 8) Import hàm restoreExpense
+import { fetchDeletedExpenses, restoreExpense, Expense } from '../../services/database';
 
 export default function TrashScreen() {
   const [deletedExpenses, setDeletedExpenses] = useState<Expense[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Tách hàm tải dữ liệu
+  // Hàm tải dữ liệu
   const loadDeletedExpenses = useCallback(() => {
     try {
       const allNotes = fetchDeletedExpenses(searchQuery);
       setDeletedExpenses(allNotes.reverse()); 
-    } catch (error) { // <--- ĐÃ SỬA LỖI (THÊM { )
+    } catch (error) {
       console.error("Lỗi khi tải Thu/Chi đã xóa:", error);
     }
   }, [searchQuery]);
@@ -42,6 +45,35 @@ export default function TrashScreen() {
       setRefreshing(false);
     }
   }, [loadDeletedExpenses]);
+
+  // --- (MỚI CÂU 8) ---
+  // (Câu 8a) Hàm xử lý khi "chạm lâu" để khôi phục
+  const handleRestoreExpense = (id: number) => {
+    // Hiển thị menu khôi phục
+    Alert.alert(
+      "Khôi phục khoản này",
+      "Bạn có chắc muốn khôi phục khoản thu/chi này?",
+      [
+        {
+          text: "Hủy",
+          style: "cancel"
+        },
+        {
+          text: "Khôi phục",
+          onPress: () => {
+            try {
+              restoreExpense(id); // Gọi hàm khôi phục
+              loadDeletedExpenses(); // Tải lại danh sách thùng rác
+            } catch (error) {
+              console.error("Lỗi khi khôi phục:", error);
+            }
+          },
+          style: "default"
+        }
+      ]
+    );
+  };
+  // -------------------------
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -82,8 +114,8 @@ export default function TrashScreen() {
               amount={item.amount}
               date={item.date}
               type={item.type}
-              // (Sẽ dùng cho Câu 8)
-              // onLongPress={() => handleRestoreNote(item.id)}
+              // (MỚI CÂU 8) Gán sự kiện chạm lâu
+              onLongPress={() => handleRestoreExpense(item.id)}
             />
           )}
           ListEmptyComponent={
