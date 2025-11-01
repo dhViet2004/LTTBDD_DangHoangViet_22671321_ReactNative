@@ -5,12 +5,15 @@ import {
   View, 
   StatusBar, 
   TouchableOpacity, 
-  FlatList
+  FlatList,
+  Alert // (MỚI CÂU 5) Import Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router'; 
 import ExpenseItem from '../../components/ExpenseItem';
-import { fetchExpenses, Expense } from '../../services/database';
+
+// (MỚI CÂU 5) Import hàm softDeleteExpense
+import { fetchExpenses, softDeleteExpense, Expense } from '../../services/database';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -19,7 +22,7 @@ export default function HomeScreen() {
   // Hàm để tải dữ liệu
   const loadExpenses = useCallback(async () => {
     try {
-      const allExpenses = fetchExpenses();
+      const allExpenses = fetchExpenses(); // Hàm này đã được sửa để chỉ lấy chưa xóa
       setExpenses(allExpenses.reverse());
     } catch (error) {
       console.error("Lỗi khi tải Thu/Chi:", error);
@@ -27,7 +30,6 @@ export default function HomeScreen() {
   }, []);
 
   // Tự động refresh khi màn hình được focus
-  // (Câu 4c: Tự động cập nhật lại danh sách khi quay về)
   useFocusEffect(
     useCallback(() => {
       loadExpenses();
@@ -38,6 +40,38 @@ export default function HomeScreen() {
   const handlePressAdd = () => {
     router.push('/modal');
   };
+
+  // --- (MỚI CHO CÂU 5) ---
+  // (Câu 5a, 5b) Hàm xử lý khi "chạm lâu"
+  const handleLongPressExpense = (id: number) => {
+    // (Câu 5b) Hiển thị hộp thoại xác định
+    Alert.alert(
+      "Xác nhận xóa", // Tiêu đề
+      "Bạn có chắc muốn xóa khoản này? Nó sẽ được chuyển vào Thùng rác.", // Nội dung
+      [
+        // Nút 1: Hủy
+        {
+          text: "Hủy",
+          style: "cancel"
+        },
+        // Nút 2: Xóa
+        {
+          text: "Xóa",
+          onPress: () => {
+            // Khi bấm Xóa
+            try {
+              softDeleteExpense(id); // Gọi hàm xóa mềm
+              loadExpenses(); // Tải lại danh sách
+            } catch (error) {
+              console.error("Lỗi khi xóa:", error);
+            }
+          },
+          style: "destructive" // Kiểu phá hủy (chữ màu đỏ trên iOS)
+        }
+      ]
+    );
+  };
+  // -------------------------
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -52,23 +86,21 @@ export default function HomeScreen() {
           style={styles.content}
           data={expenses}
           keyExtractor={(item) => item.id.toString()}
-          
-          // --- (THAY ĐỔI CÂU 4A Ở ĐÂY) ---
           renderItem={({ item }) => (
             <ExpenseItem
               title={item.title}
               amount={item.amount}
               date={item.date}
               type={item.type}
-              // (Câu 4a) Khi nhấn vào item
+              // (Câu 4) Khi nhấn
               onPress={() => router.push({ 
-                pathname: '/edit',        // Chuyển sang màn hình edit
-                params: { id: item.id }   // Truyền id của item qua
+                pathname: '/edit',
+                params: { id: item.id }
               })}
+              // (CẬP NHẬT CÂU 5) Khi chạm lâu
+              onLongPress={() => handleLongPressExpense(item.id)}
             />
           )}
-          // ------------------------------------
-
           ListEmptyComponent={
             <Text style={styles.placeholderText}>Chưa có khoản Thu/Chi nào.</Text>
           }

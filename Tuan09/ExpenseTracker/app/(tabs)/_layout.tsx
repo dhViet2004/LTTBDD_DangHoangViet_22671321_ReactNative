@@ -1,8 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons'; // Dùng icon cho đẹp
+import { Ionicons } from '@expo/vector-icons'; 
 
-// Component helper cho TabBarIcon
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
@@ -21,22 +20,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home', // Chữ hiển thị trên Tab Bar
-          
-          // (QUAN TRỌNG) Ẩn header mặc định đi
+          title: 'Home',
           headerShown: false, 
-          
           tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
         }}
       />
+      {/* --- (CẬP NHẬT CÂU 5c) --- */}
       <Tabs.Screen
-        name="explore" // Tab thứ 2
+        name="trash" // Đổi "explore" thành "trash"
         options={{
-          title: 'Explore', 
-          headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="search-outline" color={color} />,
+          title: 'Thùng rác', // Tên tab mới
+          headerShown: false, // Ẩn header, chúng ta tự tạo sau
+          tabBarIcon: ({ color }) => <TabBarIcon name="trash-outline" color={color} />, // Icon thùng rác
         }}
       />
+      {/* ------------------------- */}
     </Tabs>
   );
 }
