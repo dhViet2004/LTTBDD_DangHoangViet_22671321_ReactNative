@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   FlatList,
   Alert,
-  TextInput // (MỚI CÂU 6a) Import TextInput
+  TextInput,
+  RefreshControl // (MỚI CÂU 7) Import RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router'; 
@@ -17,21 +18,37 @@ import { fetchExpenses, softDeleteExpense, Expense } from '../../services/databa
 export default function HomeScreen() {
   const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  
-  // (MỚI CÂU 6a) State cho thanh tìm kiếm
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // (MỚI CÂU 7) State để quản lý trạng thái "đang làm mới"
+  const [refreshing, setRefreshing] = useState(false);
 
-  // (CẬP NHẬT CÂU 6a) Tải Thu/Chi dựa trên searchQuery
-  useFocusEffect(
-    useCallback(() => {
-      try {
-        const allExpenses = fetchExpenses(searchQuery); // Truyền searchQuery vào
-        setExpenses(allExpenses.reverse()); 
-      } catch (error) {
-        console.error("Lỗi khi tải Thu/Chi:", error);
-      }
-    }, [searchQuery]) // Thêm searchQuery vào dependencies (để tự động tìm khi gõ)
-  );
+  // (CẬP NHẬT CÂU 7) Tách hàm tải dữ liệu
+  const loadExpenses = useCallback(() => {
+    try {
+      const allExpenses = fetchExpenses(searchQuery);
+      setExpenses(allExpenses.reverse()); 
+    } catch (error) {
+      console.error("Lỗi khi tải Thu/Chi:", error);
+    }
+  }, [searchQuery]); // Phụ thuộc vào searchQuery
+
+  // Tải lại khi focus
+  useFocusEffect(loadExpenses);
+
+  // --- (MỚI CÂU 7) Hàm xử lý khi kéo xuống ---
+  // (Câu 7a, 7b)
+  const onRefresh = useCallback(() => {
+    setRefreshing(true); // 1. Bật indicator
+    try {
+      loadExpenses(); // 2. Gọi lại function GET (tải dữ liệu)
+    } catch (error) {
+      console.error("Lỗi khi làm mới:", error);
+    } finally {
+      setRefreshing(false); // 3. Tắt indicator
+    }
+  }, [loadExpenses]); // Phụ thuộc vào hàm loadExpenses
+  // ------------------------------------------
 
   // (Câu 3) Hàm xử lý khi bấm nút "+"
   const handlePressAdd = () => {
@@ -50,9 +67,7 @@ export default function HomeScreen() {
           onPress: () => {
             try {
               softDeleteExpense(id);
-              // Tải lại danh sách sau khi xóa
-              const allExpenses = fetchExpenses(searchQuery);
-              setExpenses(allExpenses.reverse());
+              loadExpenses(); // Tải lại danh sách
             } catch (error) {
               console.error("Lỗi khi xóa:", error);
             }
@@ -72,22 +87,33 @@ export default function HomeScreen() {
           <Text style={styles.headerText}>EXPENSE TRACKER</Text>
         </View>
 
-        {/* --- (MỚI CÂU 6a) Thanh Tìm Kiếm --- */}
+        {/* Thanh Tìm Kiếm (Câu 6a) */}
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
             placeholder="Tìm kiếm khoản thu/chi..."
             placeholderTextColor="#999"
             value={searchQuery}
-            onChangeText={setSearchQuery} // Cập nhật state khi gõ
+            onChangeText={setSearchQuery} 
           />
         </View>
-        {/* ------------------------------------ */}
 
         <FlatList
           style={styles.content}
           data={expenses}
           keyExtractor={(item) => item.id.toString()}
+          
+          // --- (CẬP NHẬT CÂU 7A) ---
+          // Thêm prop 'refreshControl' vào FlatList
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing} // Trạng thái
+              onRefresh={onRefresh} // Hàm được gọi khi kéo
+              colors={['#007AFF']} // (Tùy chọn) Màu của indicator
+            />
+          }
+          // ---------------------------
+
           renderItem={({ item }) => (
             <ExpenseItem
               title={item.title}
@@ -116,7 +142,7 @@ export default function HomeScreen() {
   );
 }
 
-// (CẬP NHẬT CÂU 6a) Thêm style cho thanh tìm kiếm
+// (Styles giữ nguyên như cũ)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -138,7 +164,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
-  // (MỚI) Style thanh tìm kiếm
   searchContainer: {
     paddingHorizontal: 20,
     paddingTop: 15,
@@ -154,11 +179,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  // (CẬP NHẬT) Style nội dung
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingBottom: 20, // Bỏ paddingTop
+    paddingBottom: 20,
   },
   placeholderText: {
     fontSize: 16,

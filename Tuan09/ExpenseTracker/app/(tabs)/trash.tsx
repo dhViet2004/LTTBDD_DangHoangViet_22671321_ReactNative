@@ -5,32 +5,43 @@ import {
   View, 
   StatusBar, 
   FlatList,
-  TextInput // (MỚI CÂU 6b) Import TextInput
+  TextInput,
+  RefreshControl 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router'; 
 import ExpenseItem from '../../components/ExpenseItem';
-
-// (MỚI CÂU 6b) Import hàm fetchDeletedExpenses
 import { fetchDeletedExpenses, Expense } from '../../services/database';
 
 export default function TrashScreen() {
   const [deletedExpenses, setDeletedExpenses] = useState<Expense[]>([]);
-  
-  // (MỚI CÂU 6b) State cho thanh tìm kiếm
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // (CẬP NHẬT CÂU 6b) Tải Thu/Chi đã xóa dựa trên searchQuery
-  useFocusEffect(
-    useCallback(() => {
-      try {
-        const allNotes = fetchDeletedExpenses(searchQuery); // Truyền searchQuery
-        setDeletedExpenses(allNotes.reverse()); 
-      } catch (error) {
-        console.error("Lỗi khi tải Thu/Chi đã xóa:", error);
-      }
-    }, [searchQuery]) // Thêm searchQuery vào dependencies
-  );
+  // Tách hàm tải dữ liệu
+  const loadDeletedExpenses = useCallback(() => {
+    try {
+      const allNotes = fetchDeletedExpenses(searchQuery);
+      setDeletedExpenses(allNotes.reverse()); 
+    } catch (error) { // <--- ĐÃ SỬA LỖI (THÊM { )
+      console.error("Lỗi khi tải Thu/Chi đã xóa:", error);
+    }
+  }, [searchQuery]);
+
+  // Tải lại khi focus
+  useFocusEffect(loadDeletedExpenses);
+
+  // Hàm xử lý khi kéo làm mới
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    try {
+      loadDeletedExpenses();
+    } catch (error) {
+      console.error("Lỗi khi làm mới thùng rác:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadDeletedExpenses]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -41,7 +52,7 @@ export default function TrashScreen() {
           <Text style={styles.headerText}>Thùng rác</Text>
         </View>
 
-        {/* --- (MỚI CÂU 6b) Thanh Tìm Kiếm --- */}
+        {/* Thanh Tìm Kiếm (Câu 6b) */}
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
@@ -51,12 +62,20 @@ export default function TrashScreen() {
             onChangeText={setSearchQuery}
           />
         </View>
-        {/* ------------------------------------ */}
 
         <FlatList
           style={styles.content}
           data={deletedExpenses}
           keyExtractor={(item) => item.id.toString()}
+          
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#007AFF']}
+            />
+          }
+
           renderItem={({ item }) => (
             <ExpenseItem
               title={item.title}
@@ -76,7 +95,7 @@ export default function TrashScreen() {
   );
 }
 
-// (CẬP NHẬT CÂU 6b) Thêm style cho thanh tìm kiếm
+// (Styles giữ nguyên)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -97,7 +116,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  // (MỚI) Style thanh tìm kiếm
   searchContainer: {
     paddingHorizontal: 20,
     paddingTop: 15,
@@ -113,7 +131,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  // (CẬP NHẬT) Style nội dung
   content: {
     flex: 1,
     paddingHorizontal: 20,
